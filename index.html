@@ -104,6 +104,27 @@ function fmtDate(d) {
   return dt.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function getOrderRate(orderType) {
+  if (orderType === 'reinforcement') return 0.50;
+  if (orderType === 'warranty') return 0;
+  return 0.40;
+}
+
+function calcSalary(ordList) {
+  let rev = 0, sal = 0, regSal = 0, reinfSal = 0;
+  for (const o of ordList) {
+    if (o.status !== 'completed') continue;
+    const price = Number(o.price || 0);
+    const rate = getOrderRate(o.order_type);
+    const earned = Math.round(price * rate);
+    rev += price;
+    sal += earned;
+    if (o.order_type === 'reinforcement') reinfSal += earned;
+    else if (o.order_type !== 'warranty') regSal += earned;
+  }
+  return { rev, sal, comp: rev - sal, regSal, reinfSal };
+}
+
 async function api(path, method = 'GET', body = null) {
   const r = await fetch(U + path, {
     method,
@@ -176,11 +197,11 @@ function oCard(o) {
   const mName = m ? esc(m.name) : 'Не назначен';
 
   const typeMap = {
-    regular: ['Обычная', 'badge'],
-    reinforcement: ['Закрепительная', 'badge badge-y'],
+    regular: ['Новая (40%)', 'badge'],
+    reinforcement: ['Закрепительная (50%)', 'badge badge-y'],
     warranty: ['Гарантия', 'badge badge-r']
   };
-  const [tLabel, tCls] = typeMap[o.order_type] || ['Обычная', 'badge'];
+  const [tLabel, tCls] = typeMap[o.order_type] || ['Новая (40%)', 'badge'];
 
   const stMap = {
     new: ['Новая', 'badge'],
@@ -214,6 +235,7 @@ function oCard(o) {
         <div>👤 <b>${esc(o.client_name || 'Клиент')}</b> ${o.phone ? `(<a class="tel" href="tel:${esc(o.phone)}">${esc(o.phone)}</a>)` : ''}</div>
         <div>📍 ${esc(o.address || 'Адрес не указан')}</div>
         ${isD ? `<div class="sm">🛠 Мастер: <b>${mName}</b></div>` : ''}
+        ${o.order_type === 'reinforcement' ? `<div class="sm">${o.reminded ? '🔔 Напоминание отправлено в TG' : '⏳ Напоминание придёт за 2 часа'}</div>` : ''}
         ${o.comment ? `<div class="sm" style="margin-top:4px;background:#f8fafc;padding:6px 8px;border-radius:8px">💬 ${esc(o.comment)}</div>` : ''}
       </div>
       ${actions ? `<div class="row mt" style="justify-content:flex-end;flex-wrap:wrap">${actions}</div>` : ''}
@@ -226,7 +248,7 @@ function draw() {
   document.getElementById('scr-app').classList.remove('hide');
 
   const isD = me.role === 'director';
-  document.getElementById('u-sub').textContent = me.name + (isD ? '' : ` (${me.percent}%)`);
+  document.getElementById('u-sub').textContent = me.name + (isD ? '' : ' (40% / 50%)');
   document.getElementById('u-role').textContent = isD ? 'Директор' : 'Мастер';
 
   const list = isD
@@ -238,21 +260,4 @@ function draw() {
   ).join('');
 
   const v = document.getElementById('view');
-  const myOrd = isD ? orders : orders.filter(o => Number(o.master_id) === Number(me.tg_id));
-
-  if (tab === 'home') {
-    const act = myOrd.filter(o => o.status !== 'completed');
-    const done = myOrd.filter(o => o.status === 'completed');
-    v.innerHTML = `
-      <div class="grid2">
-        <div class="card"><div class="sm">В работе</div><div class="big">${act.length}</div></div>
-        <div class="card"><div class="sm">Выполнено</div><div class="big" style="color:#059669">${done.length}</div></div>
-      </div>
-      ${act.map(oCard).join('') || '<div class="card sm" style="text-align:center">Активных заявок нет</div>'}
-    `;
-  }
-  else if (tab === 'add' && isD) {
-    const ms = users.filter(u => u.role === 'master');
-    v.innerHTML = `
-      <div class="card">
   
