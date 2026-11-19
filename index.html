@@ -63,9 +63,8 @@ a.tel{color:#4f46e5;text-decoration:none;font-weight:600}
   </div>
   <div id="view" class="box"></div>
 </div>
-
 <script>
-const U = 'https://supabase.co';
+const U = 'https://' + 'ucjezypmyvhflzglvuab' + '.supabase.co' + '/rest/v1/';
 const K = 'sb_publishable_87IwmGmHxwW_sLV4Wm1YYg_PkfcgfZa';
 const H = {
   'apikey': K,
@@ -153,7 +152,7 @@ async function start() {
     }
     await reload();
   } catch (e) {
-    document.getElementById('st-load').textContent = 'Ошибка подключения: ' + e.message;
+    document.getElementById('st-load').textContent = 'Ошибка: ' + e.message;
   }
 }
 
@@ -182,6 +181,7 @@ async function reload() {
     me = users.find(x => Number(x.tg_id) === Number(myId)) || me;
     draw();
   } catch (e) {
+    document.getElementById('st-load').textContent = 'Ошибка загрузки: ' + e.message;
     alert('Ошибка обновления данных: ' + e.message);
   }
 }
@@ -190,8 +190,7 @@ function go(t) {
   tab = t;
   reload();
 }
-
-function oCard(o) {
+  function oCard(o) {
   const isD = me.role === 'director';
   const m = users.find(u => Number(u.tg_id) === Number(o.master_id));
   const mName = m ? esc(m.name) : 'Не назначен';
@@ -260,4 +259,290 @@ function draw() {
   ).join('');
 
   const v = document.getElementById('view');
-  
+  const myOrd = isD ? orders : orders.filter(o => Number(o.master_id) === Number(me.tg_id));
+
+  if (tab === 'home') {
+    const act = myOrd.filter(o => o.status !== 'completed');
+    const done = myOrd.filter(o => o.status === 'completed');
+    v.innerHTML = `
+      <div class="grid2">
+        <div class="card"><div class="sm">В работе</div><div class="big">${act.length}</div></div>
+        <div class="card"><div class="sm">Выполнено</div><div class="big" style="color:#059669">${done.length}</div></div>
+      </div>
+      ${act.map(oCard).join('') || '<div class="card sm" style="text-align:center">Активных заявок нет</div>'}
+    `;
+  }
+  else if (tab === 'add' && isD) {
+    const ms = users.filter(u => u.role === 'master');
+    v.innerHTML = `
+      <div class="card">
+        <h3>Новая заявка</h3>
+        <input id="f-cl" placeholder="Имя клиента">
+        <input id="f-ph" type="tel" placeholder="Телефон">
+        <input id="f-ad" placeholder="Адрес">
+        <select id="f-ps">
+          <option>Тараканы</option>
+          <option>Клопы</option>
+          <option>Грызуны</option>
+          <option>Клещи</option>
+          <option>Дезинфекция</option>
+        </select>
+        <select id="f-tp">
+          <option value="regular">Новая (мастеру 40%)</option>
+          <option value="reinforcement">Закрепительная (мастеру 50%)</option>
+          <option value="warranty">Гарантия (0%)</option>
+        </select>
+        <input id="f-pr" type="number" placeholder="Цена (₸)">
+        <input id="f-dt" type="datetime-local">
+        <select id="f-ms">
+          <option value="">-- Выберите мастера --</option>
+          ${ms.map(m => `<option value="${m.tg_id}">${esc(m.name)}</option>`).join('')}
+        </select>
+        <textarea id="f-cm" rows="2" placeholder="Примечание"></textarea>
+        <button class="btn" onclick="addOrd()">Создать заявку</button>
+      </div>
+    `;
+  }
+  else if (['orders', 'reinf', 'warr'].includes(tab)) {
+    let arr = myOrd;
+    if (tab === 'reinf') arr = arr.filter(o => o.order_type === 'reinforcement');
+    if (tab === 'warr') arr = arr.filter(o => o.order_type === 'warranty');
+    v.innerHTML = arr.map(oCard).join('') || '<div class="card sm" style="text-align:center">Заявок нет</div>';
+  }
+    else if (tab === 'cash') {
+    if (!isD) {
+      const { rev, sal, comp, regSal, reinfSal } = calcSalary(myOrd);
+      const myH = cash.filter(c => Number(c.master_id) === Number(me.tg_id));
+      const handed = myH.filter(c => c.status === 'confirmed').reduce((s, c) => s + Number(c.amount || 0), 0);
+      const pending = myH.filter(c => c.status === 'pending').reduce((s, c) => s + Number(c.amount || 0), 0);
+      const debt = Math.max(0, comp - handed);
+
+      const histHtml = myH.map(c => {
+        const st = c.status === 'confirmed'
+          ? ['Подтверждено', 'badge badge-g']
+          : c.status === 'rejected'
+            ? ['Отклонено', 'badge badge-r']
+            : ['Ожидает', 'badge badge-y'];
+        return `<div class="row mt" style="border-top:1px solid #f1f5f9;padding-top:8px">
+          <div><b>${fmtMoney(c.amount)}</b><div class="sm">${fmtDate(c.created_at)}</div></div>
+          <span class="${st[1]}">${st[0]}</span>
+        </div>`;
+      }).join('');
+
+      v.innerHTML = `
+        <div class="card" style="line-height:1.9;font-size:14px">
+          <div class="row"><span class="sm">Общая выручка:</span><b>${fmtMoney(rev)}</b></div>
+          <div class="row"><span class="sm">• С новых (40%):</span><span>${fmtMoney(regSal)}</span></div>
+          <div class="row"><span class="sm">• С закрепительных (50%):</span><span>${fmtMoney(reinfSal)}</span></div>
+          <div class="row"><span class="sm">Итого зарплата:</span><b style="color:#059669">${fmtMoney(sal)}</b></div>
+          <div class="row"><span class="sm">Доля компании:</span><b>${fmtMoney(comp)}</b></div>
+          <div class="row"><span class="sm">Подтверждено сдач:</span><b>${fmtMoney(handed)}</b></div>
+          ${pending ? `<div class="row"><span class="sm">На проверке:</span><b style="color:#d97706">${fmtMoney(pending)}</b></div>` : ''}
+          <div class="row" style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px">
+            <span class="sm">Остаток к сдаче:</span><b style="color:#dc2626;font-size:16px">${fmtMoney(debt)}</b>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Сдать кассу директору</h4>
+          <input id="c-amt" type="number" placeholder="Сумма (₸)" value="${debt > 0 ? debt : ''}">
+          <button class="btn btn-g" onclick="sendCash()">Отправить отчёт о сдаче</button>
+        </div>
+        ${histHtml ? `<div class="card"><h4>История сдач</h4>${histHtml}</div>` : ''}
+      `;
+    } else {
+      const pendList = cash.filter(c => c.status === 'pending');
+      const pendHtml = pendList.map(c => {
+        const m = users.find(u => Number(u.tg_id) === Number(c.master_id));
+        return `
+          <div class="card">
+            <div class="row">
+              <div><b>${esc(m ? m.name : c.master_id)}</b><div class="sm">${fmtDate(c.created_at)}</div></div>
+              <b style="font-size:16px;color:#4f46e5">${fmtMoney(c.amount)}</b>
+            </div>
+            <div class="row mt" style="justify-content:flex-end">
+              <button class="btn btn-r" onclick="setCash(${c.id}, 'rejected')">Отклонить</button>
+              <button class="btn btn-g btn-sm" onclick="setCash(${c.id}, 'confirmed')">Подтвердить</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const ms = users.filter(u => u.role === 'master');
+      const summaryHtml = ms.map(m => {
+        const mOrd = orders.filter(o => Number(o.master_id) === Number(m.tg_id));
+        const { rev, sal, comp } = calcSalary(mOrd);
+        const handed = cash.filter(c => Number(c.master_id) === Number(m.tg_id) && c.status === 'confirmed').reduce((s, c) => s + Number(c.amount || 0), 0);
+        const debt = Math.max(0, comp - handed);
+        return `
+          <div class="row mt" style="border-top:1px solid #f1f5f9;padding-top:8px">
+            <div>
+              <b>${esc(m.name)}</b>
+              <div class="sm">Выручка: ${fmtMoney(rev)} • ЗП: ${fmtMoney(sal)}</div>
+            </div>
+            <div style="text-align:right">
+              <span class="sm">Долг:</span><br>
+              <b style="color:${debt > 0 ? '#dc2626' : '#059669'}">${fmtMoney(debt)}</b>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      v.innerHTML = `
+        ${pendHtml ? `<h4>Ожидают подтверждения</h4><div class="mt">${pendHtml}</div>` : '<div class="card sm" style="text-align:center">Новых сдач на проверку нет</div>'}
+        <div class="card"><h4>Сводка по мастерам</h4>${summaryHtml || '<div class="sm mt">Мастеров пока нет</div>'}</div>
+      `;
+    }
+  }
+  else if (tab === 'masters' && isD) {
+    const ms = users.filter(u => u.role === 'master');
+    v.innerHTML = `
+      <div class="card">
+        <h3>Добавить мастера</h3>
+        <p class="sm mt">Ставки: 40% с новых заявок, 50% с закрепительных</p>
+        <input id="m-id" type="number" placeholder="Telegram ID мастера">
+        <input id="m-nm" placeholder="Имя мастера">
+        <button class="btn" onclick="addMaster()">Добавить</button>
+      </div>
+      ${ms.map(m => `
+        <div class="card row">
+          <div>
+            <b>${esc(m.name)}</b>
+            <div class="sm">ID: ${m.tg_id} • Ставка: 40% / 50%</div>
+          </div>
+          <button class="btn btn-r" onclick="delMaster(${m.tg_id})">Удалить</button>
+        </div>
+      `).join('')}
+    `;
+  }
+  else if (tab === 'qr') {
+    v.innerHTML = `
+      <div class="card" style="text-align:center">
+        <h3>Kaspi QR для оплаты</h3>
+        ${qr
+          ? `<img src="${esc(qr)}" alt="Kaspi QR" style="max-width:100%;border-radius:12px;margin-top:12px">`
+          : `<p class="sm mt">QR-код ещё не загружен директором</p>`
+        }
+      </div>
+      ${isD ? `
+        <div class="card">
+          <h4>Обновить ссылку на QR-код</h4>
+          <input id="q-url" placeholder="Прямая ссылка на изображение (https://...)" value="${esc(qr)}">
+          <button class="btn" onclick="saveQr()">Сохранить QR</button>
+        </div>
+      ` : ''}
+    `;
+  }
+}
+
+async function addOrd() {
+  const client_name = document.getElementById('f-cl').value.trim();
+  const phone = document.getElementById('f-ph').value.trim();
+  const address = document.getElementById('f-ad').value.trim();
+  const pest = document.getElementById('f-ps').value;
+  const order_type = document.getElementById('f-tp').value;
+  const price = Number(document.getElementById('f-pr').value || 0);
+  const rawDt = document.getElementById('f-dt').value;
+  const visit_date = rawDt ? new Date(rawDt).toISOString() : null;
+  const master_id = document.getElementById('f-ms').value ? Number(document.getElementById('f-ms').value) : null;
+  const comment = document.getElementById('f-cm').value.trim();
+
+  if (!address && !phone) return alert('Укажите хотя бы телефон или адрес клиента');
+  if (order_type === 'reinforcement' && !visit_date) {
+    return alert('Для закрепительной заявки обязательно укажите дату и время, чтобы пришло уведомление в Telegram');
+  }
+
+  try {
+    await api('orders', 'POST', {
+      client_name, phone, address, pest, order_type, price, visit_date, master_id, comment, status: 'new', reminded: false
+    });
+    tab = 'orders';
+    await reload();
+  } catch (e) {
+    alert('Ошибка создания заявки: ' + e.message);
+  }
+}
+
+async function setStatus(id, status) {
+  try {
+    await api(`orders?id=eq.${id}`, 'PATCH', { status });
+    await reload();
+  } catch (e) {
+    alert('Ошибка обновления статуса: ' + e.message);
+  }
+}
+
+async function delOrd(id) {
+  if (!confirm('Удалить эту заявку?')) return;
+  try {
+    await api(`orders?id=eq.${id}`, 'DELETE');
+    await reload();
+  } catch (e) {
+    alert('Ошибка удаления: ' + e.message);
+  }
+}
+
+async function sendCash() {
+  const amount = Number(document.getElementById('c-amt').value || 0);
+  if (amount <= 0) return alert('Введите корректную сумму');
+  try {
+    await api('cash_handovers', 'POST', {
+      master_id: me.tg_id,
+      amount,
+      status: 'pending'
+    });
+    await reload();
+  } catch (e) {
+    alert('Ошибка отправки: ' + e.message);
+  }
+}
+
+async function setCash(id, status) {
+  try {
+    await api(`cash_handovers?id=eq.${id}`, 'PATCH', { status });
+    await reload();
+  } catch (e) {
+    alert('Ошибка обновления кассы: ' + e.message);
+  }
+}
+
+async function addMaster() {
+  const tg_id = Number(document.getElementById('m-id').value);
+  const name = document.getElementById('m-nm').value.trim();
+  if (!tg_id || !name) return alert('Заполните Telegram ID и Имя');
+  try {
+    await api('users', 'POST', { tg_id, name, role: 'master', percent: 40 });
+    await reload();
+  } catch (e) {
+    alert('Ошибка добавления мастера: ' + e.message);
+  }
+}
+
+async function delMaster(tg_id) {
+  if (!confirm('Удалить мастера из системы?')) return;
+  try {
+    await api(`users?tg_id=eq.${tg_id}`, 'DELETE');
+    await reload();
+  } catch (e) {
+    alert('Ошибка удаления мастера: ' + e.message);
+  }
+}
+
+async function saveQr() {
+  const value = document.getElementById('q-url').value.trim();
+  try {
+    const existing = await api('settings?key=eq.kaspi_qr_url');
+    if (existing && existing.length) {
+      await api('settings?key=eq.kaspi_qr_url', 'PATCH', { value });
+    } else {
+      await api('settings', 'POST', { key: 'kaspi_qr_url', value });
+    }
+    await reload();
+  } catch (e) {
+    alert('Ошибка сохранения QR: ' + e.message);
+  }
+}
+
+start();
+</script>
+</body>
+</html>
