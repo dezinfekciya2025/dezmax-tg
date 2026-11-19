@@ -27,7 +27,6 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-ra
 </style>
 </head>
 <body>
-
 <div id="scr-auth" class="box" style="padding-top:60px;text-align:center">
   <div id="st-load" class="card">Подключение к базе...</div>
   <div id="st-dir" class="card hide">
@@ -53,16 +52,13 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-ra
   </div>
   <div id="view" class="box"></div>
 </div>
-
 <script>
 const U = 'https://' + 'ucjezypmyvhflzglvuab' + '.supabase.co' + '/rest/v1/';
 const K = 'sb_publishable_87IwmGmHxwW_sLV4Wm1YYg_PkfcgfZa';
 const H = {'apikey':K,'Authorization':'Bearer '+K,'Content-Type':'application/json','Prefer':'return=representation'};
-
 const tg = window.Telegram && window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();}
 const myId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) || 999999999;
-
 let me=null, users=[], orders=[], cash=[], qr='', tab='home';
 
 async function api(path, method='GET', body=null){
@@ -111,8 +107,7 @@ async function reload(){
 }
 
 function go(t){ tab=t; reload(); }
-
-function draw(){
+  function draw(){
   document.getElementById('scr-auth').classList.add('hide');
   document.getElementById('scr-app').classList.remove('hide');
   const isD = me.role === 'director';
@@ -163,4 +158,47 @@ function draw(){
   }
   else if(tab==='masters' && isD){
     const ms = users.filter(u=>u.role==='master');
-    
+    v.innerHTML = '<div class="card"><h4>Добавить мастера</h4><input id="m-id" type="number" placeholder="Telegram ID мастера"><input id="m-nm" placeholder="Имя мастера"><input id="m-pr" type="number" value="50" placeholder="Процент (%)"><button class="btn" onclick="addM()">Сохранить мастера</button></div>' + ms.map(m=>'<div class="card row"><div><b>'+m.name+'</b><div class="sm">ID: '+m.tg_id+' • '+m.percent+'%</div></div></div>').join('');
+  }
+  else if(tab==='qr'){
+    v.innerHTML = '<div class="card" style="text-align:center"><h3>Kaspi QR</h3>'+(qr?'<img src="'+qr+'" style="max-width:240px;margin:12px auto;border-radius:12px">':'<p class="sm" style="margin:20px 0">QR не загружен</p>')+(isD?'<input type="file" accept="image/*" onchange="upQr(event)">':'')+'</div>';
+  }
+}
+
+function oCard(o){
+  const m = users.find(u=>Number(u.tg_id)===Number(o.master_id));
+  const done = o.status==='completed';
+  const mapUrl = 'https://2gis.kz' + encodeURIComponent(o.address);
+  return '<div class="card"><div class="row"><b>'+o.pest_type+' — '+o.price+' ₸</b><span class="badge">'+(done?'Завершена':'В работе')+'</span></div><div class="sm" style="margin:6px 0">🕒 '+(o.scheduled_at||'').replace('T',' ')+'</div><div style="font-size:14px;line-height:1.6"><div>👤 '+o.client_name+' (<a href="tel:'+o.client_phone+'">'+o.client_phone+'</a>)</div><div>📍 <a href="'+mapUrl+'" target="_blank">'+o.address+'</a></div>'+(me.role==='director'?'<div>🛠 Мастер: <b>'+(m?m.name:'-')+'</b></div>':'')+(o.director_comment?'<div class="sm">📝 '+o.director_comment+'</div>':'')+'</div>'+(!done?'<div class="row" style="margin-top:10px"><button class="btn btn-g" style="margin:0" onclick="doneOrd(\''+o.id+'\')">✅ Завершить</button>'+(me.role==='director'?'<button class="btn btn-r" style="margin:0" onclick="delOrd(\''+o.id+'\')">Удалить</button>':'')+'</div>':'')+'</div>';
+}
+
+async function addOrd(){
+  await api('orders','POST',{client_name:document.getElementById('f-cl').value,client_phone:document.getElementById('f-ph').value,address:document.getElementById('f-ad').value,pest_type:document.getElementById('f-ps').value,order_type:document.getElementById('f-tp').value,price:Number(document.getElementById('f-pr').value),scheduled_at:document.getElementById('f-dt').value,master_id:Number(document.getElementById('f-ms').value),director_comment:document.getElementById('f-cm').value,status:'assigned'});
+  go('home');
+}
+async function doneOrd(id){
+  const cm = prompt('Способ оплаты и комментарий:') || 'Выполнено';
+  await api('orders?id=eq.'+id,'PATCH',{status:'completed',master_comment:cm});
+  reload();
+}
+async function delOrd(id){ if(confirm('Удалить?')){ await api('orders?id=eq.'+id,'DELETE'); reload(); } }
+async function sendCash(){
+  await api('cash_handovers','POST',{master_id:me.tg_id,amount:Number(document.getElementById('c-am').value),comment:document.getElementById('c-cm').value,status:'pending'});
+  reload();
+}
+async function okCash(id){ await api('cash_handovers?id=eq.'+id,'PATCH',{status:'confirmed'}); reload(); }
+async function addM(){
+  await api('users','POST',{tg_id:Number(document.getElementById('m-id').value),name:document.getElementById('m-nm').value,role:'master',percent:Number(document.getElementById('m-pr').value)});
+  reload();
+}
+function upQr(e){
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=async()=>{ await api('settings?key=eq.kaspi_qr_url','PATCH',{value:r.result}); reload(); };
+  r.readAsDataURL(f);
+}
+
+start();
+</script>
+</body>
+</html>
