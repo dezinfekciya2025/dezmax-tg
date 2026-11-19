@@ -67,8 +67,11 @@ let me=null, users=[], orders=[], cash=[], qr='', tab='home';
 
 async function api(path, method='GET', body=null){
   const r = await fetch(U+path, {method, headers:H, body: body?JSON.stringify(body):null});
-  return r.ok ? r.json() : [];
+  const txt = await r.text();
+  if(!r.ok) throw new Error(r.status + ': ' + txt);
+  return txt ? JSON.parse(txt) : [];
 }
+  
 
 async function start(){
   try{
