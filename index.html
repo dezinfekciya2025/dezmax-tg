@@ -6,542 +6,148 @@
 <title>DezMax CRM</title>
 <script src="https://telegram.org"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,sans-serif}
 body{background:#f3f4f6;color:#1e293b;padding-bottom:60px}
 .hide{display:none!important}
 .box{max-width:460px;margin:0 auto;padding:14px}
 .card{background:#fff;border-radius:16px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .head{background:#0f172a;color:#fff;padding:16px;border-radius:0 0 20px 20px}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-top:12px;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-.tabs::-webkit-scrollbar{display:none}
-.tab{background:rgba(255,255,255,.12);color:#e2e8f0;border:none;padding:8px 13px;border-radius:10px;font-size:13px;white-space:nowrap;cursor:pointer}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-top:12px;padding-bottom:4px}
+.tab{background:rgba(255,255,255,.12);color:#e2e8f0;border:none;padding:7px 12px;border-radius:10px;font-size:12px;white-space:nowrap}
 .tab.act{background:#4f46e5;color:#fff;font-weight:600}
-input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;margin-top:8px;background:#fff;outline:none}
-input:focus,select:focus,textarea:focus{border-color:#4f46e5}
-.btn{width:100%;padding:12px;border:none;border-radius:12px;background:#4f46e5;color:#fff;font-weight:600;font-size:14px;margin-top:10px;cursor:pointer}
-.btn:active{opacity:.85}
-.btn-g{background:#059669}
-.btn-y{background:#d97706}
+input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;margin-top:6px;background:#fff}
+.btn{width:100%;padding:12px;border:none;border-radius:12px;background:#4f46e5;color:#fff;font-weight:600;font-size:14px;margin-top:10px}
+.btn-g{background:#059669}.btn-y{background:#d97706}
 .btn-r{background:#fee2e2;color:#dc2626;padding:8px 12px;width:auto;font-size:12px;margin-top:0}
-.btn-sm{padding:8px 12px;width:auto;font-size:12px;margin-top:0}
+.btn-s{padding:8px 12px;width:auto;font-size:12px;margin-top:0}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.badge{font-size:11px;padding:3px 8px;border-radius:99px;font-weight:600;background:#e0e7ff;color:#4338ca;white-space:nowrap}
-.badge-g{background:#d1fae5;color:#065f46}
-.badge-y{background:#fef3c7;color:#92400e}
-.badge-r{background:#fee2e2;color:#991b1b}
+.badge{font-size:11px;padding:3px 8px;border-radius:99px;font-weight:600;background:#e0e7ff;color:#4338ca}
+.bg-g{background:#d1fae5;color:#065f46}.bg-y{background:#fef3c7;color:#92400e}.bg-r{background:#fee2e2;color:#991b1b}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .big{font-size:22px;font-weight:700;color:#4f46e5;margin-top:4px}
-.sm{font-size:12px;color:#64748b}
-.mt{margin-top:8px}
-a.tel{color:#4f46e5;text-decoration:none;font-weight:600}
+.sm{font-size:12px;color:#64748b}.mt{margin-top:8px}
 </style>
 </head>
 <body>
-
 <div id="scr-auth" class="box" style="padding-top:60px;text-align:center">
   <div id="st-load" class="card">Подключение к базе...</div>
-  <div id="st-dir" class="card hide">
-    <h3>🛡 Первый запуск CRM</h3>
-    <p class="sm" style="margin:8px 0">Нажмите кнопку, чтобы стать Директором</p>
-    <input id="in-dname" placeholder="Ваше имя" value="Директор">
-    <button class="btn" onclick="regDir()">Войти как Директор</button>
-  </div>
-  <div id="st-no" class="card hide">
-    <h3>🔒 Доступ закрыт</h3>
-    <p class="sm" style="margin:8px 0">Отправьте этот ID директору для добавления:</p>
-    <div id="my-id" style="font-size:20px;font-weight:700;padding:10px;background:#f1f5f9;border-radius:10px;user-select:all"></div>
-  </div>
+  <div id="st-dir" class="card hide"><h3>Первый запуск CRM</h3><input id="in-dname" value="Директор"><button class="btn" onclick="regDir()">Войти как Директор</button></div>
+  <div id="st-no" class="card hide"><h3>Доступ закрыт</h3><p class="sm">Ваш ID для директора:</p><div id="my-id" style="font-size:20px;font-weight:700;padding:10px;background:#f1f5f9;border-radius:10px"></div></div>
 </div>
-
 <div id="scr-app" class="hide">
-  <div class="head">
-    <div class="row">
-      <div><b>DezMax CRM</b><div id="u-sub" class="sm" style="color:#94a3b8"></div></div>
-      <span id="u-role" class="badge"></span>
-    </div>
-    <div id="nav" class="tabs"></div>
-  </div>
+  <div class="head"><div class="row"><div><b>DezMax CRM</b><div id="u-sub" class="sm" style="color:#94a3b8"></div></div><span id="u-role" class="badge"></span></div><div id="nav" class="tabs"></div></div>
   <div id="view" class="box"></div>
 </div>
 <script>
-const U = 'https://' + 'ucjezypmyvhflzglvuab' + '.supabase.co' + '/rest/v1/';
-const K = 'sb_publishable_87IwmGmHxwW_sLV4Wm1YYg_PkfcgfZa';
-const H = {
-  'apikey': K,
-  'Authorization': 'Bearer ' + K,
-  'Content-Type': 'application/json',
-  'Prefer': 'return=representation'
-};
+const U='https://supabase.co';
+const K='sb_publishable_87IwmGmHxwW_sLV4Wm1YYg_PkfcgfZa';
+const H={'apikey':K,'Authorization':'Bearer '+K,'Content-Type':'application/json','Prefer':'return=representation'};
+const tg=window.Telegram&&window.Telegram.WebApp; if(tg){tg.ready();tg.expand();}
+const myId=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.id)||999999999;
+let me=null,users=[],orders=[],cash=[],qr='',tab='home';
 
-const tg = window.Telegram && window.Telegram.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-}
+const esc=s=>s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const money=n=>Number(n||0).toLocaleString('ru-RU')+' ₸';
+const fdate=d=>d?new Date(d).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+const rate=t=>t==='reinforcement'?0.5:(t==='warranty'?0:0.4);
 
-const myId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) || 999999999;
-let me = null, users = [], orders = [], cash = [], qr = '', tab = 'home';
-
-function esc(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function fmtMoney(n) {
-  return Number(n || 0).toLocaleString('ru-RU') + ' ₸';
-}
-
-function fmtDate(d) {
-  if (!d) return '';
-  const dt = new Date(d);
-  if (isNaN(dt)) return esc(d);
-  return dt.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
-
-function getOrderRate(orderType) {
-  if (orderType === 'reinforcement') return 0.50;
-  if (orderType === 'warranty') return 0;
-  return 0.40;
-}
-
-function calcSalary(ordList) {
-  let rev = 0, sal = 0, regSal = 0, reinfSal = 0;
-  for (const o of ordList) {
-    if (o.status !== 'completed') continue;
-    const price = Number(o.price || 0);
-    const rate = getOrderRate(o.order_type);
-    const earned = Math.round(price * rate);
-    rev += price;
-    sal += earned;
-    if (o.order_type === 'reinforcement') reinfSal += earned;
-    else if (o.order_type !== 'warranty') regSal += earned;
+function calc(list){
+  let rev=0,sal=0,r1=0,r2=0;
+  for(const o of list){
+    if(o.status!=='completed')continue;
+    const p=Number(o.price||0),e=Math.round(p*rate(o.order_type));
+    rev+=p; sal+=e;
+    if(o.order_type==='reinforcement')r2+=e; else if(o.order_type!=='warranty')r1+=e;
   }
-  return { rev, sal, comp: rev - sal, regSal, reinfSal };
+  return {rev,sal,comp:rev-sal,r1,r2};
 }
 
-async function api(path, method = 'GET', body = null) {
-  const r = await fetch(U + path, {
-    method,
-    headers: H,
-    body: body ? JSON.stringify(body) : null
-  });
-  const txt = await r.text();
-  if (!r.ok) throw new Error(r.status + ' ' + txt);
-  return txt ? JSON.parse(txt) : [];
+async function api(p,m='GET',b=null){
+  const r=await fetch(U+p,{method:m,headers:H,body:b?JSON.stringify(b):null});
+  const t=await r.text();
+  if(!r.ok)throw new Error(r.status+' '+t);
+  return t?JSON.parse(t):[];
 }
 
-async function start() {
-  try {
-    users = await api('users?select=*');
-    if (!users.length) {
-      document.getElementById('st-load').classList.add('hide');
-      document.getElementById('st-dir').classList.remove('hide');
-      return;
+async function start(){
+  try{
+    users=await api('users?select=*');
+    if(!users.length){document.getElementById('st-load').classList.add('hide');document.getElementById('st-dir').classList.remove('hide');return;}
+    me=users.find(x=>Number(x.tg_id)===Number(myId));
+    if(!me){document.getElementById('st-load').classList.add('hide');document.getElementById('st-no').classList.remove('hide');document.getElementById('my-id').textContent=myId;return;}
+    await reload();
+  }catch(e){document.getElementById('st-load').textContent='Ошибка: '+e.message;}
+}
+
+async function regDir(){await api('users','POST',{tg_id:myId,name:document.getElementById('in-dname').value||'Директор',role:'director',percent:100});location.reload();}
+
+async function reload(){
+  const [u,o,c,s]=await Promise.all([api('users?select=*'),api('orders?select=*&order=created_at.desc'),api('cash_handovers?select=*&order=created_at.desc'),api('settings?key=eq.kaspi_qr_url')]);
+  users=u;orders=o;cash=c;qr=(s.at(0)?.value)||'';me=users.find(x=>Number(x.tg_id)===Number(myId))||me;draw();
+}
+
+function go(t){tab=t;reload();}
+  function oCard(o){
+  const isD=me.role==='director',m=users.find(u=>Number(u.tg_id)===Number(o.master_id));
+  const tp={regular:['Новая 40%','badge'],reinforcement:['Закреп. 50%','badge bg-y'],warranty:['Гарантия','badge bg-r']}[o.order_type]||['Новая 40%','badge'];
+  const st={new:['Новая','badge'],in_progress:['В работе','badge bg-y'],completed:['Выполнена','badge bg-g']}[o.status]||['Новая','badge'];
+  let act='';
+  if(o.status!=='completed'){
+    if(!o.status||o.status==='new')act+=`<button class="btn btn-y btn-s" onclick="setSt(${o.id},'in_progress')">В работу</button>`;
+    act+=`<button class="btn btn-g btn-s" onclick="setSt(${o.id},'completed')">Завершить</button>`;
+  }
+  if(isD)act+=`<button class="btn btn-r" onclick="delO(${o.id})">Удалить</button>`;
+  return `<div class="card"><div class="row"><b>${esc(o.pest)} — ${money(o.price)}</b><span class="${st.at(1)}">${st.at(0)}</span></div><div class="row mt"><span class="${tp.at(1)}">${tp.at(0)}</span><span class="sm">${fdate(o.visit_date||o.created_at)}</span></div><div class="mt" style="font-size:14px"><div>👤 <b>${esc(o.client_name)}</b> ${o.phone?`<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>`:''}</div><div>📍 ${esc(o.address)}</div>${isD?`<div class="sm">Мастер: <b>${m?esc(m.name):'Нет'}</b></div>`:''}${o.order_type==='reinforcement'?`<div class="sm">${o.reminded?'🔔 Уведомление отправлено':'⏳ Напоминание за 2ч'}</div>`:''}${o.comment?`<div class="sm">💬 ${esc(o.comment)}</div>`:''}</div>${act?`<div class="row mt" style="justify-content:flex-end">${act}</div>`:''}</div>`;
+}
+
+function draw(){
+  document.getElementById('scr-auth').classList.add('hide');document.getElementById('scr-app').classList.remove('hide');
+  const isD=me.role==='director';
+  document.getElementById('u-sub').textContent=me.name+(isD?'':' (40%/50%)');
+  document.getElementById('u-role').textContent=isD?'Директор':'Мастер';
+  const list=isD?[['home','Обзор'],['add','+ Заявка'],['orders','Все'],['cash','Касса'],['masters','Мастера'],['qr','QR']]:[['home','Главная'],['orders','Заявки'],['reinf','Закреп.'],['warr','Гарантия'],['cash','Касса'],['qr','QR']];
+  document.getElementById('nav').innerHTML=list.map(([i,n])=>`<button class="tab ${tab===i?'act':''}" onclick="go('${i}')">${n}</button>`).join('');
+  const v=document.getElementById('view'),myOrd=isD?orders:orders.filter(o=>Number(o.master_id)===Number(me.tg_id));
+
+  if(tab==='home'){
+    const act=myOrd.filter(o=>o.status!=='completed'),done=myOrd.filter(o=>o.status==='completed');
+    v.innerHTML=`<div class="grid2"><div class="card"><div class="sm">В работе</div><div class="big">${act.length}</div></div><div class="card"><div class="sm">Выполнено</div><div class="big" style="color:#059669">${done.length}</div></div></div>${act.map(oCard).join('')||'<div class="card sm" style="text-align:center">Пусто</div>'}`;
+  }else if(tab==='add'&&isD){
+    const ms=users.filter(u=>u.role==='master');
+    v.innerHTML=`<div class="card"><h3>Новая заявка</h3><input id="f-cl" placeholder="Клиент"><input id="f-ph" placeholder="Телефон"><input id="f-ad" placeholder="Адрес"><select id="f-ps"><option>Тараканы</option><option>Клопы</option><option>Грызуны</option><option>Клещи</option><option>Дезинфекция</option></select><select id="f-tp"><option value="regular">Новая (40%)</option><option value="reinforcement">Закрепительная (50%)</option><option value="warranty">Гарантия (0%)</option></select><input id="f-pr" type="number" placeholder="Цена (₸)"><input id="f-dt" type="datetime-local"><select id="f-ms"><option value="">-- Мастер --</option>${ms.map(m=>`<option value="${m.tg_id}">${esc(m.name)}</option>`).join('')}</select><textarea id="f-cm" placeholder="Примечание"></textarea><button class="btn" onclick="addOrd()">Создать</button></div>`;
+  }else if(['orders','reinf','warr'].includes(tab)){
+    let a=myOrd; if(tab==='reinf')a=a.filter(o=>o.order_type==='reinforcement'); if(tab==='warr')a=a.filter(o=>o.order_type==='warranty');
+    v.innerHTML=a.map(oCard).join('')||'<div class="card sm" style="text-align:center">Пусто</div>';
+  }else if(tab==='cash'){
+    if(!isD){
+      const {rev,sal,comp,r1,r2}=calc(myOrd),myH=cash.filter(c=>Number(c.master_id)===Number(me.tg_id));
+      const hnd=myH.filter(c=>c.status==='confirmed').reduce((s,c)=>s+Number(c.amount||0),0),debt=Math.max(0,comp-hnd);
+      v.innerHTML=`<div class="card" style="line-height:1.8;font-size:14px"><div class="row"><span class="sm">Выручка:</span><b>${money(rev)}</b></div><div class="row"><span class="sm">Новые (40%):</span><span>${money(r1)}</span></div><div class="row"><span class="sm">Закреп. (50%):</span><span>${money(r2)}</span></div><div class="row"><span class="sm">Зарплата:</span><b style="color:#059669">${money(sal)}</b></div><div class="row"><span class="sm">Фирме:</span><b>${money(comp)}</b></div><div class="row"><span class="sm">Сдано:</span><b>${money(hnd)}</b></div><div class="row"><span class="sm">Долг:</span><b style="color:#dc2626">${money(debt)}</b></div></div><div class="card"><input id="c-amt" type="number" value="${debt||''}" placeholder="Сумма"><button class="btn btn-g" onclick="sndC()">Сдать кассу</button></div>`;
+    }else{
+      const pnd=cash.filter(c=>c.status==='pending').map(c=>{const m=users.find(u=>Number(u.tg_id)===Number(c.master_id));return `<div class="card row"><div><b>${esc(m?m.name:c.master_id)}</b><div class="sm">${money(c.amount)}</div></div><div class="row"><button class="btn btn-r" onclick="setC(${c.id},'rejected')">Нет</button><button class="btn btn-g btn-s" onclick="setC(${c.id},'confirmed')">Да</button></div></div>`;}).join('');
+      const sum=users.filter(u=>u.role==='master').map(m=>{const {rev,sal,comp}=calc(orders.filter(o=>Number(o.master_id)===Number(m.tg_id))),hnd=cash.filter(c=>Number(c.master_id)===Number(m.tg_id)&&c.status==='confirmed').reduce((s,c)=>s+Number(c.amount||0),0);return `<div class="row mt"><div><b>${esc(m.name)}</b><div class="sm">Касса: ${money(rev)} | ЗП: ${money(sal)}</div></div><b>Долг: ${money(Math.max(0,comp-hnd))}</b></div>`;}).join('');
+      v.innerHTML=pnd+`<div class="card"><h4>Мастера</h4>${sum||'Нет'}</div>`;
     }
-    me = users.find(x => Number(x.tg_id) === Number(myId));
-    if (!me) {
-      document.getElementById('st-load').classList.add('hide');
-      document.getElementById('st-no').classList.remove('hide');
-      document.getElementById('my-id').textContent = myId;
-      return;
-    }
-    await reload();
-  } catch (e) {
-    document.getElementById('st-load').textContent = 'Ошибка: ' + e.message;
+  }else if(tab==='masters'&&isD){
+    v.innerHTML=`<div class="card"><input id="m-id" type="number" placeholder="TG ID"><input id="m-nm" placeholder="Имя"><button class="btn" onclick="addM()">Добавить мастера</button></div>`+users.filter(u=>u.role==='master').map(m=>`<div class="card row"><div><b>${esc(m.name)}</b><div class="sm">ID: ${m.tg_id}</div></div><button class="btn btn-r" onclick="delM(${m.tg_id})">Удалить</button></div>`).join('');
+  }else if(tab==='qr'){
+    v.innerHTML=`<div class="card" style="text-align:center">${qr?`<img src="${esc(qr)}" style="max-width:100%;border-radius:12px">`:'<p class="sm">QR не задан</p>'}</div>`+(isD?`<div class="card"><input id="q-u" value="${esc(qr)}" placeholder="Ссылка на QR"><button class="btn" onclick="savQ()">Сохранить</button></div>`:'');
   }
 }
 
-async function regDir() {
-  const name = document.getElementById('in-dname').value.trim() || 'Директор';
-  try {
-    await api('users', 'POST', { tg_id: myId, name, role: 'director', percent: 100 });
-    location.reload();
-  } catch (e) {
-    alert('Ошибка регистрации: ' + e.message);
-  }
+async function addOrd(){
+  const raw=document.getElementById('f-dt').value,tp=document.getElementById('f-tp').value;
+  if(tp==='reinforcement'&&!raw)return alert('Укажите дату и время для напоминания!');
+  await api('orders','POST',{client_name:document.getElementById('f-cl').value,phone:document.getElementById('f-ph').value,address:document.getElementById('f-ad').value,pest:document.getElementById('f-ps').value,order_type:tp,price:Number(document.getElementById('f-pr').value||0),visit_date:raw?new Date(raw).toISOString():null,master_id:Number(document.getElementById('f-ms').value)||null,comment:document.getElementById('f-cm').value,status:'new',reminded:false});
+  tab='orders';reload();
 }
-
-async function reload() {
-  try {
-    const [uRes, oRes, cRes, sRes] = await Promise.all([
-      api('users?select=*'),
-      api('orders?select=*&order=created_at.desc'),
-      api('cash_handovers?select=*&order=created_at.desc'),
-      api('settings?key=eq.kaspi_qr_url')
-    ]);
-    users = uRes;
-    orders = oRes;
-    cash = cRes;
-    qr = (sRes && sRes[0] && sRes[0].value) || '';
-    me = users.find(x => Number(x.tg_id) === Number(myId)) || me;
-    draw();
-  } catch (e) {
-    document.getElementById('st-load').textContent = 'Ошибка загрузки: ' + e.message;
-    alert('Ошибка обновления данных: ' + e.message);
-  }
-}
-
-function go(t) {
-  tab = t;
-  reload();
-}
-  function oCard(o) {
-  const isD = me.role === 'director';
-  const m = users.find(u => Number(u.tg_id) === Number(o.master_id));
-  const mName = m ? esc(m.name) : 'Не назначен';
-
-  const typeMap = {
-    regular: ['Новая (40%)', 'badge'],
-    reinforcement: ['Закрепительная (50%)', 'badge badge-y'],
-    warranty: ['Гарантия', 'badge badge-r']
-  };
-  const [tLabel, tCls] = typeMap[o.order_type] || ['Новая (40%)', 'badge'];
-
-  const stMap = {
-    new: ['Новая', 'badge'],
-    in_progress: ['В работе', 'badge badge-y'],
-    completed: ['Выполнена', 'badge badge-g']
-  };
-  const [sLabel, sCls] = stMap[o.status] || ['Новая', 'badge'];
-
-  let actions = '';
-  if (o.status !== 'completed') {
-    if (o.status === 'new' || !o.status) {
-      actions += `<button class="btn btn-y btn-sm" onclick="setStatus(${o.id}, 'in_progress')">Взять в работу</button>`;
-    }
-    actions += `<button class="btn btn-g btn-sm" onclick="setStatus(${o.id}, 'completed')">Завершить</button>`;
-  }
-  if (isD) {
-    actions += `<button class="btn btn-r" onclick="delOrd(${o.id})">Удалить</button>`;
-  }
-
-  return `
-    <div class="card">
-      <div class="row">
-        <b>${esc(o.pest || 'Дезинсекция')} — ${fmtMoney(o.price)}</b>
-        <span class="${sCls}">${sLabel}</span>
-      </div>
-      <div class="row mt">
-        <span class="${tCls}">${tLabel}</span>
-        <span class="sm">${fmtDate(o.visit_date || o.created_at)}</span>
-      </div>
-      <div class="mt" style="font-size:14px;line-height:1.5">
-        <div>👤 <b>${esc(o.client_name || 'Клиент')}</b> ${o.phone ? `(<a class="tel" href="tel:${esc(o.phone)}">${esc(o.phone)}</a>)` : ''}</div>
-        <div>📍 ${esc(o.address || 'Адрес не указан')}</div>
-        ${isD ? `<div class="sm">🛠 Мастер: <b>${mName}</b></div>` : ''}
-        ${o.order_type === 'reinforcement' ? `<div class="sm">${o.reminded ? '🔔 Напоминание отправлено в TG' : '⏳ Напоминание придёт за 2 часа'}</div>` : ''}
-        ${o.comment ? `<div class="sm" style="margin-top:4px;background:#f8fafc;padding:6px 8px;border-radius:8px">💬 ${esc(o.comment)}</div>` : ''}
-      </div>
-      ${actions ? `<div class="row mt" style="justify-content:flex-end;flex-wrap:wrap">${actions}</div>` : ''}
-    </div>
-  `;
-}
-
-function draw() {
-  document.getElementById('scr-auth').classList.add('hide');
-  document.getElementById('scr-app').classList.remove('hide');
-
-  const isD = me.role === 'director';
-  document.getElementById('u-sub').textContent = me.name + (isD ? '' : ' (40% / 50%)');
-  document.getElementById('u-role').textContent = isD ? 'Директор' : 'Мастер';
-
-  const list = isD
-    ? [['home', 'Обзор'], ['add', '+ Заявка'], ['orders', 'Все заявки'], ['cash', 'Касса'], ['masters', 'Мастера'], ['qr', 'QR-код']]
-    : [['home', 'Главная'], ['orders', 'Заявки'], ['reinf', 'Закрепительная'], ['warr', 'Гарантия'], ['cash', 'Касса'], ['qr', 'QR-код']];
-
-  document.getElementById('nav').innerHTML = list.map(([id, nm]) =>
-    `<button class="tab ${tab === id ? 'act' : ''}" onclick="go('${id}')">${nm}</button>`
-  ).join('');
-
-  const v = document.getElementById('view');
-  const myOrd = isD ? orders : orders.filter(o => Number(o.master_id) === Number(me.tg_id));
-
-  if (tab === 'home') {
-    const act = myOrd.filter(o => o.status !== 'completed');
-    const done = myOrd.filter(o => o.status === 'completed');
-    v.innerHTML = `
-      <div class="grid2">
-        <div class="card"><div class="sm">В работе</div><div class="big">${act.length}</div></div>
-        <div class="card"><div class="sm">Выполнено</div><div class="big" style="color:#059669">${done.length}</div></div>
-      </div>
-      ${act.map(oCard).join('') || '<div class="card sm" style="text-align:center">Активных заявок нет</div>'}
-    `;
-  }
-  else if (tab === 'add' && isD) {
-    const ms = users.filter(u => u.role === 'master');
-    v.innerHTML = `
-      <div class="card">
-        <h3>Новая заявка</h3>
-        <input id="f-cl" placeholder="Имя клиента">
-        <input id="f-ph" type="tel" placeholder="Телефон">
-        <input id="f-ad" placeholder="Адрес">
-        <select id="f-ps">
-          <option>Тараканы</option>
-          <option>Клопы</option>
-          <option>Грызуны</option>
-          <option>Клещи</option>
-          <option>Дезинфекция</option>
-        </select>
-        <select id="f-tp">
-          <option value="regular">Новая (мастеру 40%)</option>
-          <option value="reinforcement">Закрепительная (мастеру 50%)</option>
-          <option value="warranty">Гарантия (0%)</option>
-        </select>
-        <input id="f-pr" type="number" placeholder="Цена (₸)">
-        <input id="f-dt" type="datetime-local">
-        <select id="f-ms">
-          <option value="">-- Выберите мастера --</option>
-          ${ms.map(m => `<option value="${m.tg_id}">${esc(m.name)}</option>`).join('')}
-        </select>
-        <textarea id="f-cm" rows="2" placeholder="Примечание"></textarea>
-        <button class="btn" onclick="addOrd()">Создать заявку</button>
-      </div>
-    `;
-  }
-  else if (['orders', 'reinf', 'warr'].includes(tab)) {
-    let arr = myOrd;
-    if (tab === 'reinf') arr = arr.filter(o => o.order_type === 'reinforcement');
-    if (tab === 'warr') arr = arr.filter(o => o.order_type === 'warranty');
-    v.innerHTML = arr.map(oCard).join('') || '<div class="card sm" style="text-align:center">Заявок нет</div>';
-  }
-    else if (tab === 'cash') {
-    if (!isD) {
-      const { rev, sal, comp, regSal, reinfSal } = calcSalary(myOrd);
-      const myH = cash.filter(c => Number(c.master_id) === Number(me.tg_id));
-      const handed = myH.filter(c => c.status === 'confirmed').reduce((s, c) => s + Number(c.amount || 0), 0);
-      const pending = myH.filter(c => c.status === 'pending').reduce((s, c) => s + Number(c.amount || 0), 0);
-      const debt = Math.max(0, comp - handed);
-
-      const histHtml = myH.map(c => {
-        const st = c.status === 'confirmed'
-          ? ['Подтверждено', 'badge badge-g']
-          : c.status === 'rejected'
-            ? ['Отклонено', 'badge badge-r']
-            : ['Ожидает', 'badge badge-y'];
-        return `<div class="row mt" style="border-top:1px solid #f1f5f9;padding-top:8px">
-          <div><b>${fmtMoney(c.amount)}</b><div class="sm">${fmtDate(c.created_at)}</div></div>
-          <span class="${st[1]}">${st[0]}</span>
-        </div>`;
-      }).join('');
-
-      v.innerHTML = `
-        <div class="card" style="line-height:1.9;font-size:14px">
-          <div class="row"><span class="sm">Общая выручка:</span><b>${fmtMoney(rev)}</b></div>
-          <div class="row"><span class="sm">• С новых (40%):</span><span>${fmtMoney(regSal)}</span></div>
-          <div class="row"><span class="sm">• С закрепительных (50%):</span><span>${fmtMoney(reinfSal)}</span></div>
-          <div class="row"><span class="sm">Итого зарплата:</span><b style="color:#059669">${fmtMoney(sal)}</b></div>
-          <div class="row"><span class="sm">Доля компании:</span><b>${fmtMoney(comp)}</b></div>
-          <div class="row"><span class="sm">Подтверждено сдач:</span><b>${fmtMoney(handed)}</b></div>
-          ${pending ? `<div class="row"><span class="sm">На проверке:</span><b style="color:#d97706">${fmtMoney(pending)}</b></div>` : ''}
-          <div class="row" style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px">
-            <span class="sm">Остаток к сдаче:</span><b style="color:#dc2626;font-size:16px">${fmtMoney(debt)}</b>
-          </div>
-        </div>
-        <div class="card">
-          <h4>Сдать кассу директору</h4>
-          <input id="c-amt" type="number" placeholder="Сумма (₸)" value="${debt > 0 ? debt : ''}">
-          <button class="btn btn-g" onclick="sendCash()">Отправить отчёт о сдаче</button>
-        </div>
-        ${histHtml ? `<div class="card"><h4>История сдач</h4>${histHtml}</div>` : ''}
-      `;
-    } else {
-      const pendList = cash.filter(c => c.status === 'pending');
-      const pendHtml = pendList.map(c => {
-        const m = users.find(u => Number(u.tg_id) === Number(c.master_id));
-        return `
-          <div class="card">
-            <div class="row">
-              <div><b>${esc(m ? m.name : c.master_id)}</b><div class="sm">${fmtDate(c.created_at)}</div></div>
-              <b style="font-size:16px;color:#4f46e5">${fmtMoney(c.amount)}</b>
-            </div>
-            <div class="row mt" style="justify-content:flex-end">
-              <button class="btn btn-r" onclick="setCash(${c.id}, 'rejected')">Отклонить</button>
-              <button class="btn btn-g btn-sm" onclick="setCash(${c.id}, 'confirmed')">Подтвердить</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      const ms = users.filter(u => u.role === 'master');
-      const summaryHtml = ms.map(m => {
-        const mOrd = orders.filter(o => Number(o.master_id) === Number(m.tg_id));
-        const { rev, sal, comp } = calcSalary(mOrd);
-        const handed = cash.filter(c => Number(c.master_id) === Number(m.tg_id) && c.status === 'confirmed').reduce((s, c) => s + Number(c.amount || 0), 0);
-        const debt = Math.max(0, comp - handed);
-        return `
-          <div class="row mt" style="border-top:1px solid #f1f5f9;padding-top:8px">
-            <div>
-              <b>${esc(m.name)}</b>
-              <div class="sm">Выручка: ${fmtMoney(rev)} • ЗП: ${fmtMoney(sal)}</div>
-            </div>
-            <div style="text-align:right">
-              <span class="sm">Долг:</span><br>
-              <b style="color:${debt > 0 ? '#dc2626' : '#059669'}">${fmtMoney(debt)}</b>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      v.innerHTML = `
-        ${pendHtml ? `<h4>Ожидают подтверждения</h4><div class="mt">${pendHtml}</div>` : '<div class="card sm" style="text-align:center">Новых сдач на проверку нет</div>'}
-        <div class="card"><h4>Сводка по мастерам</h4>${summaryHtml || '<div class="sm mt">Мастеров пока нет</div>'}</div>
-      `;
-    }
-  }
-  else if (tab === 'masters' && isD) {
-    const ms = users.filter(u => u.role === 'master');
-    v.innerHTML = `
-      <div class="card">
-        <h3>Добавить мастера</h3>
-        <p class="sm mt">Ставки: 40% с новых заявок, 50% с закрепительных</p>
-        <input id="m-id" type="number" placeholder="Telegram ID мастера">
-        <input id="m-nm" placeholder="Имя мастера">
-        <button class="btn" onclick="addMaster()">Добавить</button>
-      </div>
-      ${ms.map(m => `
-        <div class="card row">
-          <div>
-            <b>${esc(m.name)}</b>
-            <div class="sm">ID: ${m.tg_id} • Ставка: 40% / 50%</div>
-          </div>
-          <button class="btn btn-r" onclick="delMaster(${m.tg_id})">Удалить</button>
-        </div>
-      `).join('')}
-    `;
-  }
-  else if (tab === 'qr') {
-    v.innerHTML = `
-      <div class="card" style="text-align:center">
-        <h3>Kaspi QR для оплаты</h3>
-        ${qr
-          ? `<img src="${esc(qr)}" alt="Kaspi QR" style="max-width:100%;border-radius:12px;margin-top:12px">`
-          : `<p class="sm mt">QR-код ещё не загружен директором</p>`
-        }
-      </div>
-      ${isD ? `
-        <div class="card">
-          <h4>Обновить ссылку на QR-код</h4>
-          <input id="q-url" placeholder="Прямая ссылка на изображение (https://...)" value="${esc(qr)}">
-          <button class="btn" onclick="saveQr()">Сохранить QR</button>
-        </div>
-      ` : ''}
-    `;
-  }
-}
-
-async function addOrd() {
-  const client_name = document.getElementById('f-cl').value.trim();
-  const phone = document.getElementById('f-ph').value.trim();
-  const address = document.getElementById('f-ad').value.trim();
-  const pest = document.getElementById('f-ps').value;
-  const order_type = document.getElementById('f-tp').value;
-  const price = Number(document.getElementById('f-pr').value || 0);
-  const rawDt = document.getElementById('f-dt').value;
-  const visit_date = rawDt ? new Date(rawDt).toISOString() : null;
-  const master_id = document.getElementById('f-ms').value ? Number(document.getElementById('f-ms').value) : null;
-  const comment = document.getElementById('f-cm').value.trim();
-
-  if (!address && !phone) return alert('Укажите хотя бы телефон или адрес клиента');
-  if (order_type === 'reinforcement' && !visit_date) {
-    return alert('Для закрепительной заявки обязательно укажите дату и время, чтобы пришло уведомление в Telegram');
-  }
-
-  try {
-    await api('orders', 'POST', {
-      client_name, phone, address, pest, order_type, price, visit_date, master_id, comment, status: 'new', reminded: false
-    });
-    tab = 'orders';
-    await reload();
-  } catch (e) {
-    alert('Ошибка создания заявки: ' + e.message);
-  }
-}
-
-async function setStatus(id, status) {
-  try {
-    await api(`orders?id=eq.${id}`, 'PATCH', { status });
-    await reload();
-  } catch (e) {
-    alert('Ошибка обновления статуса: ' + e.message);
-  }
-}
-
-async function delOrd(id) {
-  if (!confirm('Удалить эту заявку?')) return;
-  try {
-    await api(`orders?id=eq.${id}`, 'DELETE');
-    await reload();
-  } catch (e) {
-    alert('Ошибка удаления: ' + e.message);
-  }
-}
-
-async function sendCash() {
-  const amount = Number(document.getElementById('c-amt').value || 0);
-  if (amount <= 0) return alert('Введите корректную сумму');
-  try {
-    await api('cash_handovers', 'POST', {
-      master_id: me.tg_id,
-      amount,
-      status: 'pending'
-    });
-    await reload();
-  } catch (e) {
-    alert('Ошибка отправки: ' + e.message);
-  }
-}
-
-async function setCash(id, status) {
-  try {
-    await api(`cash_handovers?id=eq.${id}`, 'PATCH', { status });
-    await reload();
-  } catch (e) {
-    alert('Ошибка обновления кассы: ' + e.message);
-  }
-}
-
-async function addMaster() {
-  const tg_id = Number(document.getElementById('m-id').value);
-  const name = document.getElementById('m-nm').value.trim();
-  if (!tg_id || !name) return alert('Заполните Telegram ID и Имя');
-  try {
-    await api('users', 'POST', { tg_id, name, role: 'master', percent: 40 });
-    await reload();
-  } catch (e) {
-    alert('Ошибка добавления мастера: ' + e.message);
-  }
-}
-
-async function delMaster(tg_id) {
-  if (!confirm('Удалить мастера из системы?')) return;
-  try {
-    await api(`users?tg_id=eq.${tg_id}`, 'DELETE');
-    await reload();
-  } catch (e) {
-    alert('Ошибка удаления мастера: ' + e.message);
-  }
-}
-
-async function saveQr() {
-  const value = document.getElementById('q-url').value.trim();
-  try {
-    const existing = await api('settings?key=eq.kaspi_qr_url');
-    if (existing && existing.length) {
-      await api('settings?key=eq.kaspi_qr_url', 'PATCH', { value });
-    } else {
-      await api('settings', 'POST', { key: 'kaspi_qr_url', value });
-    }
-    await reload();
-  } catch (e) {
-    alert('Ошибка сохранения QR: ' + e.message);
-  }
-}
-
+async function setSt(id,status){await api('orders?id=eq.'+id,'PATCH',{status});reload();}
+async function delO(id){if(confirm('Удалить?')){await api('orders?id=eq.'+id,'DELETE');reload();}}
+async function sndC(){const a=Number(document.getElementById('c-amt').value||0);if(a>0){await api('cash_handovers','POST',{master_id:me.tg_id,amount:a,status:'pending'});reload();}}
+async function setC(id,status){await api('cash_handovers?id=eq.'+id,'PATCH',{status});reload();}
+async function addM(){const i=Number(document.getElementById('m-id').value),n=document.getElementById('m-nm').value;if(i&&n){await api('users','POST',{tg_id:i,name:n,role:'master',percent:40});reload();}}
+async function delM(id){if(confirm('Удалить?')){await api('users?tg_id=eq.'+id,'DELETE');reload();}}
+async function savQ(){const v=document.getElementById('q-u').value.trim(),ex=await api('settings?key=eq.kaspi_qr_url');if(ex.length)await api('settings?key=eq.kaspi_qr_url','PATCH',{value:v});else await api('settings','POST',{key:'kaspi_qr_url',value:v});reload();}
 start();
 </script>
 </body>
