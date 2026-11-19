@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DezMax CRM</title>
+  <script src="https://telegram.org"></script>
+  <script src="https://tailwindcss.com"></script>
+  <script src="https://jsdelivr.net"></script>
+  <style>
+    body { background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="text-slate-800 pb-20">
+
+  <div id="auth-screen" class="min-h-screen flex flex-col items-center justify-center p-5 text-center">
+    <div id="loader-box">
+      <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+      <p class="text-sm text-slate-500">Загрузка DezMax CRM...</p>
+    </div>
+
+    <div id="setup-director-box" class="hidden bg-white p-6 rounded-2xl shadow-md max-w-sm w-full">
+      <div class="text-3xl mb-2">🛡</div>
+      <h2 class="text-lg font-bold mb-1">Первый запуск DezMax CRM</h2>
+      <p class="text-xs text-slate-500 mb-4">Нажмите кнопку ниже, чтобы привязать ваш Telegram-аккаунт как Директора.</p>
+      <input id="dir-name-input" type="text" placeholder="Ваше имя (например: Директор)" class="w-full border rounded-xl p-3 text-sm mb-3" />
+      <button onclick="registerFirstDirector()" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl text-sm">
+        Войти как Директор
+      </button>
+    </div>
+
+    <div id="no-access-box" class="hidden bg-white p-6 rounded-2xl shadow-md max-w-sm w-full">
+      <div class="text-3xl mb-2">🔒</div>
+      <h2 class="text-lg font-bold mb-1">Доступ закрыт</h2>
+      <p class="text-xs text-slate-500 mb-3">Передайте этот ID директору, чтобы он добавил вас в систему:</p>
+      <div id="my-tg-id-display" class="bg-slate-100 font-mono text-base font-bold py-2.5 px-4 rounded-xl select-all mb-3"></div>
+      <button onclick="copyMyId()" class="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-semibold">Скопировать ID</button>
+    </div>
+  </div>
+
+  <div id="main-app" class="hidden max-w-md mx-auto">
+    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-4 pt-4 pb-5 rounded-b-2xl shadow">
+      <div class="flex justify-between items-center mb-3">
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">DezMax <span class="text-indigo-400">CRM</span></h1>
+          <p id="header-subtitle" class="text-xs text-slate-300"></p>
+        </div>
+        <span id="role-badge" class="text-[11px] bg-white/10 px-2.5 py-1 rounded-full font-medium"></span>
+      </div>
+      <nav id="nav-tabs" class="flex gap-1.5 overflow-x-auto no-scrollbar pt-1"></nav>
+    </header>
+    <main id="tab-content" class="p-4 space-y-4"></main>
+  </div>
+
+  <div id="finish-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-3">
+      <h3 class="font-bold text-base">Завершить заявку</h3>
+      <input type="hidden" id="finish-order-id" />
+      <div>
+        <label class="text-xs text-slate-500 block mb-1">Способ оплаты</label>
+        <select id="finish-payment" class="w-full border rounded-xl p-2.5 text-sm bg-white">
+          <option value="Kaspi QR / Перевод">Kaspi QR / Перевод</option>
+          <option value="Наличные">Наличные</option>
+          <option value="Счет / Карта">Счет / Карта</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-500 block mb-1">Комментарий (препарат, гарантия)</label>
+        <textarea id="finish-comment" rows="2" placeholder="Обработано холодным туманом..." class="w-full border rounded-xl p-2.5 text-sm"></textarea>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeFinishModal()" class="flex-1 py-2.5 border rounded-xl text-sm font-medium">Отмена</button>
+        <button onclick="submitFinishOrder()" class="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+    <script>
+    const SUPABASE_URL = 'https://supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_87IwmGmHxwW_sLV4Wm1YYg_PkfcgfZa';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
+
+    const tgUser = tg?.initDataUnsafe?.user;
+    const currentTgId = tgUser?.id || Number(localStorage.getItem('test_tg_id')) || 999999999;
+
+    let currentUser = null;
+    let usersList = [];
+    let ordersList = [];
+    let handoversList = [];
+    let kaspiQrUrl = '';
+    let activeTab = 'home';
+    let statusFilter = 'all';
+    let searchQuery = '';
+
+    async function initApp() {
+      const { data: users } = await db.from('users').select('*');
+      usersList = users || [];
+
+      if (usersList.length === 0) {
+        document.getElementById('loader-box').classList.add('hidden');
+        document.getElementById('setup-director-box').classList.remove('hidden');
+        if (tgUser?.first_name) document.getElementById('dir-name-input').value = tgUser.first_name;
+        return;
+      }
+
+      currentUser = usersList.find(u => Number(u.tg_id) === Number(currentTgId));
+
+      if (!currentUser) {
+        document.getElementById('loader-box').classList.add('hidden');
+        document.getElementById('no-access-box').classList.remove('hidden');
+        document.getElementById('my-tg-id-display').textContent = currentTgId;
+        return;
+      }
+
+      await loadAllData();
+      setupInterface();
+    }
+
+    window.registerFirstDirector = async () => {
+      const name = document.getElementById('dir-name-input').value.trim() || 'Директор';
+      const { error } = await db.from('users').insert([{ tg_id: currentTgId, name, role: 'director', percent: 100 }]);
+      if (error) return alert('Ошибка: ' + error.message);
+      location.reload();
+    };
+
+    window.copyMyId = () => {
+      navigator.clipboard.writeText(String(currentTgId));
+      alert('ID скопирован: ' + currentTgId);
+    };
+
+    async function loadAllData() {
+      const [uRes, oRes, hRes, sRes] = await Promise.all([
+        db.from('users').select('*'),
+        db.from('orders').select('*').order('created_at', { ascending: false }),
+        db.from('cash_handovers').select('*').order('created_at', { ascending: false }),
+        db.from('settings').select('*').eq('key', 'kaspi_qr_url').single()
+      ]);
+      usersList = uRes.data || [];
+      ordersList = oRes.data || [];
+      handoversList = hRes.data || [];
+      kaspiQrUrl = sRes.data?.value || '';
+    }
+
+    function setupInterface() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.remove('hidden');
+
+      const isDir = currentUser.role === 'director';
+      document.getElementById('header-subtitle').textContent = isDir
+        ? `Кабинет директора: ${currentUser.name}`
+        : `Кабинет мастера: ${currentUser.name} (${currentUser.percent}%)`;
+      document.getElementById('role-badge').textContent = isDir ? 'Директор' : 'Мастер';
+
+      const tabs = isDir
+        ? [
+            { id: 'home', label: 'Обзор' },
+            { id: 'new_order', label: '+ Заявка' },
+            { id: 'orders', label: 'Все заявки' },
+            { id: 'cash', label: 'Касса' },
+            { id: 'masters', label: 'Мастера' },
+            { id: 'qr', label: 'QR-код' }
+          ]
+        : [
+            { id: 'home', label: 'Главная' },
+            { id: 'orders', label: 'Заявки' },
+            { id: 'reinforcement', label: 'Закрепительная' },
+            { id: 'warranty', label: 'Гарантия' },
+            { id: 'cash', label: 'Касса' },
+            { id: 'qr', label: 'QR-код' }
+          ];
+
+      const nav = document.getElementById('nav-tabs');
+      nav.innerHTML = tabs.map(t => `
+        <button onclick="switchTab('${t.id}')" id="tab-btn-${t.id}"
+          class="px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${activeTab === t.id ? 'bg-indigo-600 text-white' : 'bg-white/10 text-slate-200'}">
+          ${t.label}
+        </button>
+      `).join('');
+
+      renderTab();
+    }
+
+    window.switchTab = async (tabId) => {
+      activeTab = tabId;
+      await loadAllData();
+      setupInterface();
+    };
+
+    function getVisibleOrders() {
+      if (currentUser.role === 'director') return ordersList;
+      return ordersList.filter(o => Number(o.master_id) === Number(currentUser.tg_id));
+    }
+          function renderTab() {
+      const container = document.getElementById('tab-content');
+      const isDir = currentUser.role === 'director';
+      const myOrders = getVisibleOrders();
+
+      if (activeTab === 'home') {
+        const activeCount = myOrders.filter(o => o.status !== 'completed' && o.status !== 'canceled').length;
+        const doneCount = myOrders.filter(o => o.status === 'completed').length;
+        const upcoming = myOrders.filter(o => o.status !== 'completed' && o.status !== 'canceled');
+
+        container.innerHTML = `
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+              <p class="text-xs text-slate-400">Ожидают обработки</p>
+              <p class="text-2xl font-bold text-indigo-600 mt-1">${activeCount}</p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+              <p class="text-xs text-slate-400">Выполнено всего</p>
+              <p class="text-2xl font-bold text-emerald-600 mt-1">${doneCount}</p>
+            </div>
+          </div>
+          <div class="flex justify-between items-center pt-1">
+            <h2 class="font-bold text-sm text-slate-700">Активные выезды</h2>
+            ${isDir ? `<button onclick="switchTab('new_order')" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium">+ Создать заявку</button>` : ''}
+          </div>
+          <div class="space-y-3">
+            ${upcoming.length === 0 ? '<p class="text-center text-xs text-slate-400 py-8 bg-white rounded-2xl">Активных заявок нет</p>' : upcoming.map(renderOrderCard).join('')}
+          </div>
+        `;
+      }
+
+      else if (activeTab === 'new_order' && isDir) {
+        const masters = usersList.filter(u => u.role === 'master');
+        container.innerHTML = `
+          <form onsubmit="createOrder(event)" class="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+            <h2 class="font-bold text-base">Новая заявка</h2>
+            <input id="o-client" required placeholder="Имя клиента" class="w-full border rounded-xl p-2.5 text-sm" />
+            <input id="o-phone" type="tel" required placeholder="Телефон (+7 700 000 00 00)" class="w-full border rounded-xl p-2.5 text-sm" />
+            <input id="o-address" required placeholder="Адрес (улица, дом, кв)" class="w-full border rounded-xl p-2.5 text-sm" />
+            <div class="grid grid-cols-2 gap-2">
+              <select id="o-pest" class="border rounded-xl p-2.5 text-sm bg-white">
+                <option value="Тараканы">Тараканы</option>
+                <option value="Клопы">Клопы</option>
+                <option value="Грызуны">Грызуны</option>
+                <option value="Клещи / Комары">Клещи / Комары</option>
+                <option value="Дезинфекция">Дезинфекция</option>
+              </select>
+              <select id="o-type" class="border rounded-xl p-2.5 text-sm bg-white">
+                <option value="regular">Обычная</option>
+                <option value="reinforcement">Закрепительная</option>
+                <option value="warranty">Гарантия</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="o-price" type="number" required placeholder="Цена (₸)" class="border rounded-xl p-2.5 text-sm" />
+              <input id="o-date" type="datetime-local" class="border rounded-xl p-2.5 text-sm" />
+            </div>
+              <label class="text-xs text-slate-500 block mb-1">Назначить мастера</label>
+              <select id="o-master" required class="w-full border rounded-xl p-2.5 text-sm bg-white">
+                <option value="">-- Выберите мастера --</option>
+                ${masters.map(m => `<option value="${m.tg_id}">${m.name} (${m.percent}%)</option>`).join('')}
+              </select>
+            </div>
+            <textarea id="o-comment" rows="2" placeholder="Примечание (домофон, площадь)" class="w-full border rounded-xl p-2.5 text-sm"></textarea>
+            <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl text-sm">Создать и отправить мастеру</button>
+          </form>
+        `;
+      }
+
+      else if (['orders', 'reinforcement', 'warranty'].includes(activeTab)) {
+        let filtered = myOrders;
+        if (activeTab === 'reinforcement') filtered = filtered.filter(o => o.order_type === 'reinforcement');
+        if (activeTab === 'warranty') filtered = filtered.filter(o => o.order_type === 'warranty');
+        if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          filtered = filtered.filter(o => (o.address || '').toLowerCase().includes(q) || (o.client_phone || '').includes(q) || (o.client_name || '').toLowerCase().includes(q));
+        }
+
+        container.innerHTML = `
+          <div class="space-y-2">
+            <input type="text" value="${searchQuery}" oninput="searchQuery=this.value; renderTab()" placeholder="🔍 Поиск по адресу, имени или телефону..."
+              class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm" />
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar">
+              ${[{ id: 'all', name: 'Все' }, { id: 'assigned', name: 'Назначена' }, { id: 'completed', name: 'Завершена' }].map(st => `
+                <button onclick="statusFilter='${st.id}'; renderTab()"
+                  class="px-3 py-1 rounded-lg text-xs font-medium ${statusFilter === st.id ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 border'}">
+                  ${st.name}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="space-y-3">
+            ${filtered.length === 0 ? '<p class="text-center text-xs text-slate-400 py-8 bg-white rounded-2xl">Заявок не найдено</p>' : filtered.map(renderOrderCard).join('')}
+          </div>
+        `;
+      }
+
+      else if (activeTab === 'cash') {
+        if (!isDir) {
+          const doneOrders = myOrders.filter(o => o.status === 'completed');
+          const totalRevenue = doneOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+          const masterSalary = Math.round(totalRevenue * (Number(currentUser.percent) / 100));
+          const companyShare = totalRevenue - masterSalary;
+          const myHandovers = handoversList.filter(h => Number(h.master_id) === Number(currentUser.tg_id));
+          const totalHanded = myHandovers.filter(h => h.status === 'confirmed').reduce((s, h) => s + Number(h.amount || 0), 0);
+          const pendingHanded = myHandovers.filter(h => h.status === 'pending').reduce((s, h) => s + Number(h.amount || 0), 0);
+          const balanceToHand = companyShare - totalHanded;
+
+          container.innerHTML = `
+            <div class="bg-white p-4 rounded-2xl shadow-sm space-y-2.5 text-sm">
+              <h2 class="font-bold text-base mb-2">Финансы (${currentUser.percent}% ваша доля)</h2>
+              <div class="flex justify-between"><span class="text-slate-500">Общая выручка:</span><b>${totalRevenue.toLocaleString()} ₸</b></div>
+              <div class="flex justify-between text-emerald-600"><span>Ваша зарплата (${currentUser.percent}%):</span><b>${masterSalary.toLocaleString()} ₸</b></div>
+              <div class="flex justify-between"><span>Доля компании к сдаче:</span><b>${companyShare.toLocaleString()} ₸</b></div>
+              <div class="flex justify-between text-slate-500"><span>Подтверждено сдач:</span><span>${totalHanded.toLocaleString()} ₸</span></div>
+              ${pendingHanded > 0 ? `<div class="flex justify-between text-amber-600 text-xs"><span>Ожидает проверки директора:</span><span>${pendingHanded.toLocaleString()} ₸</span></div>` : ''}
+              <div class="pt-2 border-t flex justify-between text-base font-bold text-indigo-600">
+                <span>Остаток на руках к сдаче:</span>
+                <span>${balanceToHand.toLocaleString()} ₸</span>
+              </div>
+            </div>
+            <form onsubmit="submitHandover(event)" class="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+              <h3 class="font-bold text-sm">Сдать деньги в кассу</h3>
+              <input id="h-amount" type="number" required placeholder="Сумма сдачи (₸)" class="w-full border rounded-xl p-2.5 text-sm" />
+              <input id="h-comment" placeholder="Комментарий (наличные / перевод)" class="w-full border rounded-xl p-2.5 text-sm" />
+              <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-xl text-sm">Зафиксировать сдачу</button>
+            </form>
+            <div class="space-y-2">
+              <h3 class="font-bold text-xs text-slate-500 uppercase">История сдач</h3>
+              ${myHandovers.map(h => `
+                <div class="bg-white p-3 rounded-xl text-xs flex justify-between items-center border">
+                  <div>
+                    <p class="font-bold">${Number(h.amount).toLocaleString()} ₸</p>
+                    <p class="text-slate-400">${h.comment || 'Без комментария'}</p>
+                  </div>
+                  <span class="px-2 py-1 rounded-full ${h.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                    ${h.status === 'confirmed' ? 'Принято' : 'На проверке'}
+                  </span>
+                </div>
+              `).join('') || '<p class="text-xs text-slate-400">Сдач пока не было</p>'}
+            </div>
+          `;
+        } else {
+          const doneOrders = ordersList.filter(o => o.status === 'completed');
+          const totalRev = doneOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+          container.innerHTML = `
+            <div class="bg-white p-4 rounded-2xl shadow-sm">
+              <p class="text-xs text-slate-400">Общая выручка по выполненным заказам</p>
+              
