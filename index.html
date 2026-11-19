@@ -29,7 +29,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-ra
 <body>
 
 <div id="scr-auth" class="box" style="padding-top:60px;text-align:center">
-  <div id="st-load" class="card">Загрузка...</div>
+  <div id="st-load" class="card">Подключение к базе...</div>
   <div id="st-dir" class="card hide">
     <h3>🛡 Первый запуск CRM</h3>
     <p class="sm" style="margin:8px 0">Нажмите кнопку, чтобы стать Директором</p>
@@ -59,19 +59,18 @@ const U = 'https://' + 'ucjezypmyvhflzglvuab' + '.supabase.co' + '/rest/v1/';
 const K = 'sb_publishable_87IwmGmHxwW_sLV4Wm1YYg_PkfcgfZa';
 const H = {'apikey':K,'Authorization':'Bearer '+K,'Content-Type':'application/json','Prefer':'return=representation'};
 
-const tg = window.Telegram?.WebApp;
+const tg = window.Telegram && window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();}
-const myId = tg?.initDataUnsafe?.user?.id || 999999999;
+const myId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) || 999999999;
 
 let me=null, users=[], orders=[], cash=[], qr='', tab='home';
 
 async function api(path, method='GET', body=null){
   const r = await fetch(U+path, {method, headers:H, body: body?JSON.stringify(body):null});
   const txt = await r.text();
-  if(!r.ok) throw new Error(r.status + ': ' + txt);
+  if(!r.ok) throw new Error(r.status + ' ' + txt);
   return txt ? JSON.parse(txt) : [];
 }
-  
 
 async function start(){
   try{
@@ -90,7 +89,7 @@ async function start(){
     }
     await reload();
   }catch(e){
-    document.getElementById('st-load').textContent = 'Ошибка сети: ' + e.message;
+    document.getElementById('st-load').textContent = 'Ошибка: ' + e.message;
   }
 }
 
@@ -107,7 +106,7 @@ async function reload(){
     api('cash_handovers?select=*&order=created_at.desc')
   ]);
   const s = await api('settings?key=eq.kaspi_qr_url');
-  qr = s[0]?.value || '';
+  qr = (s && s[0] && s[0].value) || '';
   draw();
 }
 
@@ -117,7 +116,7 @@ function draw(){
   document.getElementById('scr-auth').classList.add('hide');
   document.getElementById('scr-app').classList.remove('hide');
   const isD = me.role === 'director';
-  document.getElementById('u-sub').textContent = me.name + (isD ? '' : ` (${me.percent}%)`);
+  document.getElementById('u-sub').textContent = me.name + (isD ? '' : ' (' + me.percent + '%)');
   document.getElementById('u-role').textContent = isD ? 'Директор' : 'Мастер';
 
   const list = isD
@@ -125,7 +124,7 @@ function draw(){
     : [['home','Главная'],['orders','Заявки'],['reinf','Закрепительная'],['warr','Гарантия'],['cash','Касса'],['qr','QR-код']];
 
   document.getElementById('nav').innerHTML = list.map(([id,nm]) =>
-    `<button class="tab ${tab===id?'act':''}" onclick="go('${id}')">${nm}</button>`
+    '<button class="tab '+(tab===id?'act':'')+'" onclick="go(\''+id+'\')">'+nm+'</button>'
   ).join('');
 
   const v = document.getElementById('view');
@@ -134,29 +133,11 @@ function draw(){
   if(tab==='home'){
     const act = myOrd.filter(o => o.status!=='completed');
     const done = myOrd.filter(o => o.status==='completed');
-    v.innerHTML = `
-      <div class="grid2">
-        <div class="card"><div class="sm">В работе</div><div class="big">${act.length}</div></div>
-        <div class="card"><div class="sm">Выполнено</div><div class="big" style="color:#059669">${done.length}</div></div>
-      </div>
-      ${act.map(oCard).join('') || '<div class="card sm" style="text-align:center">Активных заявок нет</div>'}
-    `;
+    v.innerHTML = '<div class="grid2"><div class="card"><div class="sm">В работе</div><div class="big">'+act.length+'</div></div><div class="card"><div class="sm">Выполнено</div><div class="big" style="color:#059669">'+done.length+'</div></div></div>' + (act.map(oCard).join('') || '<div class="card sm" style="text-align:center">Активных заявок нет</div>');
   }
   else if(tab==='add' && isD){
     const ms = users.filter(u => u.role==='master');
-    v.innerHTML = `<div class="card">
-      <h3>Новая заявка</h3>
-      <input id="f-cl" placeholder="Имя клиента">
-      <input id="f-ph" placeholder="Телефон">
-      <input id="f-ad" placeholder="Адрес">
-      <select id="f-ps"><option>Тараканы</option><option>Клопы</option><option>Грызуны</option><option>Клещи</option><option>Дезинфекция</option></select>
-      <select id="f-tp"><option value="regular">Обычная</option><option value="reinforcement">Закрепительная</option><option value="warranty">Гарантия</option></select>
-      <input id="f-pr" type="number" placeholder="Цена (₸)">
-      <input id="f-dt" type="datetime-local">
-      <select id="f-ms"><option value="">-- Выберите мастера --</option>${ms.map(m=>`<option value="${m.tg_id}">${m.name} (${m.percent}%)</option>`).join('')}</select>
-      <textarea id="f-cm" placeholder="Примечание"></textarea>
-      <button class="btn" onclick="addOrd()">Создать заявку</button>
-    </div>`;
+    v.innerHTML = '<div class="card"><h3>Новая заявка</h3><input id="f-cl" placeholder="Имя клиента"><input id="f-ph" placeholder="Телефон"><input id="f-ad" placeholder="Адрес"><select id="f-ps"><option>Тараканы</option><option>Клопы</option><option>Грызуны</option><option>Клещи</option><option>Дезинфекция</option></select><select id="f-tp"><option value="regular">Обычная</option><option value="reinforcement">Закрепительная</option><option value="warranty">Гарантия</option></select><input id="f-pr" type="number" placeholder="Цена (₸)"><input id="f-dt" type="datetime-local"><select id="f-ms"><option value="">-- Выберите мастера --</option>'+ms.map(m=>'<option value="'+m.tg_id+'">'+m.name+' ('+m.percent+'%)</option>').join('')+'</select><textarea id="f-cm" placeholder="Примечание"></textarea><button class="btn" onclick="addOrd()">Создать заявку</button></div>';
   }
   else if(['orders','reinf','warr'].includes(tab)){
     let arr = myOrd;
@@ -171,40 +152,15 @@ function draw(){
       const comp = rev - sal;
       const myH = cash.filter(c=>Number(c.master_id)===Number(me.tg_id));
       const handed = myH.filter(c=>c.status==='confirmed').reduce((s,c)=>s+Number(c.amount||0),0);
-      v.innerHTML = `
-        <div class="card" style="line-height:1.8;font-size:14px">
-          <div class="row"><span class="sm">Выручка:</span><b>${rev} ₸</b></div>
-          <div class="row"><span class="sm">Зарплата (${me.percent}%):</span><b style="color:#059669">${sal} ₸</b></div>
-          <div class="row"><span class="sm">Доля компании:</span><b>${comp} ₸</b></div>
-          <div class="row"><span class="sm">Сдано:</span><b>${handed} ₸</b></div>
-          <hr style="margin:8px 0;border:0;border-top:1px solid #e2e8f0">
-          <div class="row"><b>Остаток к сдаче:</b><b style="color:#4f46e5">${comp-handed} ₸</b></div>
-        </div>
-        <div class="card">
-          <h4>Сдать деньги в кассу</h4>
-          <input id="c-am" type="number" placeholder="Сумма (₸)">
-          <input id="c-cm" placeholder="Комментарий">
-          <button class="btn" onclick="sendCash()">Зафиксировать сдачу</button>
-        </div>
-        ${myH.map(c=>`<div class="card row"><div><b>${c.amount} ₸</b><div class="sm">${c.comment||''}</div></div><span class="badge">${c.status==='confirmed'?'Принято':'Проверка'}</span></div>`).join('')}
-      `;
+      v.innerHTML = '<div class="card" style="line-height:1.8;font-size:14px"><div class="row"><span class="sm">Выручка:</span><b>'+rev+' ₸</b></div><div class="row"><span class="sm">Зарплата ('+me.percent+'%):</span><b style="color:#059669">'+sal+' ₸</b></div><div class="row"><span class="sm">Доля компании:</span><b>'+comp+' ₸</b></div><div class="row"><span class="sm">Сдано:</span><b>'+handed+' ₸</b></div><hr style="margin:8px 0;border:0;border-top:1px solid #e2e8f0"><div class="row"><b>Остаток к сдаче:</b><b style="color:#4f46e5">'+(comp-handed)+' ₸</b></div></div><div class="card"><h4>Сдать деньги в кассу</h4><input id="c-am" type="number" placeholder="Сумма (₸)"><input id="c-cm" placeholder="Комментарий"><button class="btn" onclick="sendCash()">Зафиксировать сдачу</button></div>' + myH.map(c=>'<div class="card row"><div><b>'+c.amount+' ₸</b><div class="sm">'+(c.comment||'')+'</div></div><span class="badge">'+(c.status==='confirmed'?'Принято':'Проверка')+'</span></div>').join('');
     } else {
       const rev = orders.filter(o=>o.status==='completed').reduce((s,o)=>s+Number(o.price||0),0);
-      v.innerHTML = `
-        <div class="card"><div class="sm">Общая выручка</div><div class="big" style="color:#059669">${rev} ₸</div></div>
-        ${cash.map(c=>{
-          const m = users.find(u=>Number(u.tg_id)===Number(c.master_id));
-          return `<div class="card row"><div><b>${m?m.name:'Мастер'}: ${c.amount} ₸</b><div class="sm">${c.comment||''}</div></div>
-          ${c.status==='pending'?`<button class="btn btn-g" style="width:auto;margin:0;padding:8px 12px" onclick="okCash('${c.id}')">Принять</button>`:'<span class="badge">Принято</span>'}</div>`;
-        }).join('') || '<div class="card sm">Сдач пока нет</div>'}
-      `;
+      v.innerHTML = '<div class="card"><div class="sm">Общая выручка</div><div class="big" style="color:#059669">'+rev+' ₸</div></div>' + (cash.map(c=>{
+        const m = users.find(u=>Number(u.tg_id)===Number(c.master_id));
+        return '<div class="card row"><div><b>'+(m?m.name:'Мастер')+': '+c.amount+' ₸</b><div class="sm">'+(c.comment||'')+'</div></div>'+(c.status==='pending'?'<button class="btn btn-g" style="width:auto;margin:0;padding:8px 12px" onclick="okCash(\''+c.id+'\')">Принять</button>':'<span class="badge">Принято</span>')+'</div>';
+      }).join('') || '<div class="card sm">Сдач пока нет</div>');
     }
   }
   else if(tab==='masters' && isD){
     const ms = users.filter(u=>u.role==='master');
-    v.innerHTML = `
-      <div class="card">
-        <h4>Добавить мастера</h4>
-        <input id="m-id" type="number" placeholder="Telegram ID мастера">
-        <input id="m-nm" placeholder="Имя мастера">
-        
+    
